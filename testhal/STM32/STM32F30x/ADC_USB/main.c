@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "ch.h"
 #include "hal.h"
+#include "test.h"
 
 #include "shell.h"
 #include "chprintf.h"
@@ -347,6 +348,10 @@ static const SerialUSBConfig serusbcfg = {
 #define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)
 #define TEST_WA_SIZE    THD_WORKING_AREA_SIZE(256)
 
+static void cmd_adc(BaseSequentialStream *chp, int argc, char * argv[]) {
+  chprintf(chp, "Test!\r\n");
+}
+
 static void cmd_mem(BaseSequentialStream *chp, int argc, char *argv[]) {
   size_t n, size;
 
@@ -434,6 +439,7 @@ static const ShellCommand commands[] = {
   {"threads", cmd_threads},
   //{"test", cmd_test},
   {"write", cmd_write},
+  {"adc", cmd_adc},
   {NULL, NULL}
 };
 
@@ -568,6 +574,11 @@ int main(void) {
   chThdSleepMilliseconds(1500);
   usbStart(serusbcfg.usbp, &usbcfg);
   usbConnectBus(serusbcfg.usbp);
+
+  /* 
+   * Turn on shell
+   */
+  shellInit();
 
   /*
    * Setting up analog inputs used by the demo.
