@@ -120,9 +120,9 @@ typedef struct EXTDriver EXTDriver;
  * @api
  */
 #define extSetChannelMode(extp, channel, extcp) {                           \
-  osalSysLock();                                                            \
+  chSysLock();                                                              \
   extSetChannelModeI(extp, channel, extcp);                                 \
-  osalSysUnlock();                                                          \
+  chSysUnlock();                                                            \
 }
 
 /** @} */

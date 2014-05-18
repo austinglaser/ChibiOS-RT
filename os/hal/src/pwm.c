@@ -26,6 +26,7 @@
  * @{
  */
 
+#include "ch.h"
 #include "hal.h"
 
 #if HAL_USE_PWM || defined(__DOXYGEN__)
@@ -90,16 +91,16 @@ void pwmObjectInit(PWMDriver *pwmp) {
  */
 void pwmStart(PWMDriver *pwmp, const PWMConfig *config) {
 
-  osalDbgCheck((pwmp != NULL) && (config != NULL));
+  chDbgCheck((pwmp != NULL) && (config != NULL), "pwmStart");
 
-  osalSysLock();
-  osalDbgAssert((pwmp->state == PWM_STOP) || (pwmp->state == PWM_READY),
-                "invalid state");
+  chSysLock();
+  chDbgAssert((pwmp->state == PWM_STOP) || (pwmp->state == PWM_READY),
+              "pwmStart(), #1", "invalid state");
   pwmp->config = config;
   pwmp->period = config->period;
   pwm_lld_start(pwmp);
   pwmp->state = PWM_READY;
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -111,14 +112,14 @@ void pwmStart(PWMDriver *pwmp, const PWMConfig *config) {
  */
 void pwmStop(PWMDriver *pwmp) {
 
-  osalDbgCheck(pwmp != NULL);
+  chDbgCheck(pwmp != NULL, "pwmStop");
 
-  osalSysLock();
-  osalDbgAssert((pwmp->state == PWM_STOP) || (pwmp->state == PWM_READY),
-                "invalid state");
+  chSysLock();
+  chDbgAssert((pwmp->state == PWM_STOP) || (pwmp->state == PWM_READY),
+              "pwmStop(), #1", "invalid state");
   pwm_lld_stop(pwmp);
   pwmp->state = PWM_STOP;
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -138,12 +139,13 @@ void pwmStop(PWMDriver *pwmp) {
  */
 void pwmChangePeriod(PWMDriver *pwmp, pwmcnt_t period) {
 
-  osalDbgCheck(pwmp != NULL);
+  chDbgCheck(pwmp != NULL, "pwmChangePeriod");
 
-  osalSysLock();
-  osalDbgAssert(pwmp->state == PWM_READY, "invalid state");
+  chSysLock();
+  chDbgAssert(pwmp->state == PWM_READY,
+              "pwmChangePeriod(), #1", "invalid state");
   pwmChangePeriodI(pwmp, period);
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -164,12 +166,14 @@ void pwmEnableChannel(PWMDriver *pwmp,
                       pwmchannel_t channel,
                       pwmcnt_t width) {
 
-  osalDbgCheck((pwmp != NULL) && (channel < PWM_CHANNELS));
+  chDbgCheck((pwmp != NULL) && (channel < PWM_CHANNELS),
+             "pwmEnableChannel");
 
-  osalSysLock();
-  osalDbgAssert(pwmp->state == PWM_READY, "not ready");
+  chSysLock();
+  chDbgAssert(pwmp->state == PWM_READY,
+              "pwmEnableChannel(), #1", "not ready");
   pwm_lld_enable_channel(pwmp, channel, width);
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -188,12 +192,14 @@ void pwmEnableChannel(PWMDriver *pwmp,
  */
 void pwmDisableChannel(PWMDriver *pwmp, pwmchannel_t channel) {
 
-  osalDbgCheck((pwmp != NULL) && (channel < PWM_CHANNELS));
+  chDbgCheck((pwmp != NULL) && (channel < PWM_CHANNELS),
+             "pwmEnableChannel");
 
-  osalSysLock();
-  osalDbgAssert(pwmp->state == PWM_READY, "not ready");
+  chSysLock();
+  chDbgAssert(pwmp->state == PWM_READY,
+              "pwmDisableChannel(), #1", "not ready");
   pwm_lld_disable_channel(pwmp, channel);
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 #endif /* HAL_USE_PWM */

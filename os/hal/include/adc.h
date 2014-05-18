@@ -64,6 +64,10 @@
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
 
+#if ADC_USE_MUTUAL_EXCLUSION && !CH_USE_MUTEXES && !CH_USE_SEMAPHORES
+#error "ADC_USE_MUTUAL_EXCLUSION requires CH_USE_MUTEXES and/or CH_USE_SEMAPHORES"
+#endif
+
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
@@ -98,8 +102,14 @@ typedef enum {
  *
  * @notapi
  */
-#define _adc_reset_i(adcp)                                                  \
-  osalThreadResumeI(&(adcp)->thread, MSG_RESET)
+#define _adc_reset_i(adcp) {                                                \
+  if ((adcp)->thread != NULL) {                                             \
+    Thread *tp = (adcp)->thread;                                            \
+    (adcp)->thread = NULL;                                                  \
+    tp->p_u.rdymsg  = RDY_RESET;                                            \
+    chSchReadyI(tp);                                                        \
+  }                                                                         \
+}
 
 /**
  * @brief   Resumes a thread waiting for a conversion completion.
@@ -108,8 +118,13 @@ typedef enum {
  *
  * @notapi
  */
-#define _adc_reset_s(adcp)                                                  \
-  osalThreadResumeS(&(adcp)->thread, MSG_RESET)
+#define _adc_reset_s(adcp) {                                                \
+  if ((adcp)->thread != NULL) {                                             \
+    Thread *tp = (adcp)->thread;                                            \
+    (adcp)->thread = NULL;                                                  \
+    chSchWakeupS(tp, RDY_RESET);                                            \
+  }                                                                         \
+}
 
 /**
  * @brief   Wakes up the waiting thread.
@@ -119,9 +134,15 @@ typedef enum {
  * @notapi
  */
 #define _adc_wakeup_isr(adcp) {                                             \
-  osalSysLockFromISR();                                                     \
-  osalThreadResumeI(&(adcp)->thread, MSG_OK);                               \
-  osalSysUnlockFromISR();                                                   \
+  chSysLockFromIsr();                                                       \
+  if ((adcp)->thread != NULL) {                                             \
+    Thread *tp;                                                             \
+    tp = (adcp)->thread;                                                    \
+    (adcp)->thread = NULL;                                                  \
+    tp->p_u.rdymsg = RDY_OK;                                                \
+    chSchReadyI(tp);                                                        \
+  }                                                                         \
+  chSysUnlockFromIsr();                                                     \
 }
 
 /**
@@ -132,9 +153,15 @@ typedef enum {
  * @notapi
  */
 #define _adc_timeout_isr(adcp) {                                            \
-  osalSysLockFromISR();                                                     \
-  osalThreadResumeI(&(adcp)->thread, MSG_TIMEOUT);                          \
-  osalSysUnlockFromISR();                                                   \
+  chSysLockFromIsr();                                                       \
+  if ((adcp)->thread != NULL) {                                             \
+    Thread *tp;                                                             \
+    tp = (adcp)->thread;                                                    \
+    (adcp)->thread = NULL;                                                  \
+    tp->p_u.rdymsg = RDY_TIMEOUT;                                           \
+    chSchReadyI(tp);                                                        \
+  }                                                                         \
+  chSysUnlockFromIsr();                                                     \
 }
 
 #else /* !ADC_USE_WAIT */

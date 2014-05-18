@@ -79,6 +79,10 @@
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
 
+#if !CH_USE_QUEUES && !CH_USE_EVENTS
+#error "Serial Driver requires CH_USE_QUEUES and CH_USE_EVENTS"
+#endif
+
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
@@ -145,7 +149,7 @@ struct SerialDriver {
  *
  * @api
  */
-#define sdPutWouldBlock(sdp) oqIsFullI(&(sdp)->oqueue)
+#define sdPutWouldBlock(sdp) chOQIsFullI(&(sdp)->oqueue)
 
 /**
  * @brief   Direct input check on a @p SerialDriver.
@@ -157,7 +161,7 @@ struct SerialDriver {
  *
  * @api
  */
-#define sdGetWouldBlock(sdp) iqIsEmptyI(&(sdp)->iqueue)
+#define sdGetWouldBlock(sdp) chIQIsEmptyI(&(sdp)->iqueue)
 
 /**
  * @brief   Direct write to a @p SerialDriver.
@@ -169,7 +173,7 @@ struct SerialDriver {
  *
  * @api
  */
-#define sdPut(sdp, b) oqPut(&(sdp)->oqueue, b)
+#define sdPut(sdp, b) chOQPut(&(sdp)->oqueue, b)
 
 /**
  * @brief   Direct write to a @p SerialDriver with timeout specification.
@@ -181,7 +185,7 @@ struct SerialDriver {
  *
  * @api
  */
-#define sdPutTimeout(sdp, b, t) oqPutTimeout(&(sdp)->oqueue, b, t)
+#define sdPutTimeout(sdp, b, t) chOQPutTimeout(&(sdp)->oqueue, b, t)
 
 /**
  * @brief   Direct read from a @p SerialDriver.
@@ -193,7 +197,7 @@ struct SerialDriver {
  *
  * @api
  */
-#define sdGet(sdp) iqGet(&(sdp)->iqueue)
+#define sdGet(sdp) chIQGet(&(sdp)->iqueue)
 
 /**
  * @brief   Direct read from a @p SerialDriver with timeout specification.
@@ -205,7 +209,7 @@ struct SerialDriver {
  *
  * @api
  */
-#define sdGetTimeout(sdp, t) iqGetTimeout(&(sdp)->iqueue, t)
+#define sdGetTimeout(sdp, t) chIQGetTimeout(&(sdp)->iqueue, t)
 
 /**
  * @brief   Direct blocking write to a @p SerialDriver.
@@ -218,7 +222,7 @@ struct SerialDriver {
  * @api
  */
 #define sdWrite(sdp, b, n)                                                  \
-  oqWriteTimeout(&(sdp)->oqueue, b, n, TIME_INFINITE)
+  chOQWriteTimeout(&(sdp)->oqueue, b, n, TIME_INFINITE)
 
 /**
  * @brief   Direct blocking write to a @p SerialDriver with timeout
@@ -232,7 +236,7 @@ struct SerialDriver {
  * @api
  */
 #define sdWriteTimeout(sdp, b, n, t)                                        \
-  oqWriteTimeout(&(sdp)->oqueue, b, n, t)
+  chOQWriteTimeout(&(sdp)->oqueue, b, n, t)
 
 /**
  * @brief   Direct non-blocking write to a @p SerialDriver.
@@ -245,7 +249,7 @@ struct SerialDriver {
  * @api
  */
 #define sdAsynchronousWrite(sdp, b, n)                                      \
-  oqWriteTimeout(&(sdp)->oqueue, b, n, TIME_IMMEDIATE)
+  chOQWriteTimeout(&(sdp)->oqueue, b, n, TIME_IMMEDIATE)
 
 /**
  * @brief   Direct blocking read from a @p SerialDriver.
@@ -258,7 +262,7 @@ struct SerialDriver {
  * @api
  */
 #define sdRead(sdp, b, n)                                                   \
-  iqReadTimeout(&(sdp)->iqueue, b, n, TIME_INFINITE)
+  chIQReadTimeout(&(sdp)->iqueue, b, n, TIME_INFINITE)
 
 /**
  * @brief   Direct blocking read from a @p SerialDriver with timeout
@@ -272,7 +276,7 @@ struct SerialDriver {
  * @api
  */
 #define sdReadTimeout(sdp, b, n, t)                                         \
-  iqReadTimeout(&(sdp)->iqueue, b, n, t)
+  chIQReadTimeout(&(sdp)->iqueue, b, n, t)
 
 /**
  * @brief   Direct non-blocking read from a @p SerialDriver.
@@ -285,7 +289,7 @@ struct SerialDriver {
  * @api
  */
 #define sdAsynchronousRead(sdp, b, n)                                       \
-  iqReadTimeout(&(sdp)->iqueue, b, n, TIME_IMMEDIATE)
+  chIQReadTimeout(&(sdp)->iqueue, b, n, TIME_IMMEDIATE)
 /** @} */
 
 /*===========================================================================*/

@@ -26,6 +26,7 @@
  * @{
  */
 
+#include "ch.h"
 #include "hal.h"
 
 #if HAL_USE_SDC || defined(__DOXYGEN__)
@@ -46,14 +47,14 @@
  * @brief   Virtual methods table.
  */
 static const struct SDCDriverVMT sdc_vmt = {
-  (bool (*)(void *))sdc_lld_is_card_inserted,
-  (bool (*)(void *))sdc_lld_is_write_protected,
-  (bool (*)(void *))sdcConnect,
-  (bool (*)(void *))sdcDisconnect,
-  (bool (*)(void *, uint32_t, uint8_t *, uint32_t))sdcRead,
-  (bool (*)(void *, uint32_t, const uint8_t *, uint32_t))sdcWrite,
-  (bool (*)(void *))sdcSync,
-  (bool (*)(void *, BlockDeviceInfo *))sdcGetInfo
+  (bool_t (*)(void *))sdc_lld_is_card_inserted,
+  (bool_t (*)(void *))sdc_lld_is_write_protected,
+  (bool_t (*)(void *))sdcConnect,
+  (bool_t (*)(void *))sdcDisconnect,
+  (bool_t (*)(void *, uint32_t, uint8_t *, uint32_t))sdcRead,
+  (bool_t (*)(void *, uint32_t, const uint8_t *, uint32_t))sdcWrite,
+  (bool_t (*)(void *))sdcSync,
+  (bool_t (*)(void *, BlockDeviceInfo *))sdcGetInfo
 };
 
 /*===========================================================================*/
@@ -66,37 +67,37 @@ static const struct SDCDriverVMT sdc_vmt = {
  * @param[in] sdcp      pointer to the @p SDCDriver object
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS  operation succeeded.
- * @retval HAL_FAILED   operation failed.
+ * @retval CH_SUCCESS   operation succeeded.
+ * @retval CH_FAILED    operation failed.
  *
  * @notapi
  */
-bool _sdc_wait_for_transfer_state(SDCDriver *sdcp) {
+bool_t _sdc_wait_for_transfer_state(SDCDriver *sdcp) {
   uint32_t resp[1];
 
   while (TRUE) {
     if (sdc_lld_send_cmd_short_crc(sdcp, MMCSD_CMD_SEND_STATUS,
                                    sdcp->rca, resp) ||
         MMCSD_R1_ERROR(resp[0]))
-      return HAL_FAILED;
+      return CH_FAILED;
     switch (MMCSD_R1_STS(resp[0])) {
     case MMCSD_STS_TRAN:
-      return HAL_SUCCESS;
+      return CH_SUCCESS;
     case MMCSD_STS_DATA:
     case MMCSD_STS_RCV:
     case MMCSD_STS_PRG:
 #if SDC_NICE_WAITING
-      osalThreadSleep(MS2ST(1));
+      chThdSleepMilliseconds(1);
 #endif
       continue;
     default:
       /* The card should have been initialized so any other state is not
          valid and is reported as an error.*/
-      return HAL_FAILED;
+      return CH_FAILED;
     }
   }
   /* If something going too wrong.*/
-  return HAL_FAILED;
+  return CH_FAILED;
 }
 
 /*===========================================================================*/
@@ -143,15 +144,15 @@ void sdcObjectInit(SDCDriver *sdcp) {
  */
 void sdcStart(SDCDriver *sdcp, const SDCConfig *config) {
 
-  osalDbgCheck(sdcp != NULL);
+  chDbgCheck(sdcp != NULL, "sdcStart");
 
-  osalSysLock();
-  osalDbgAssert((sdcp->state == BLK_STOP) || (sdcp->state == BLK_ACTIVE),
-                "invalid state");
+  chSysLock();
+  chDbgAssert((sdcp->state == BLK_STOP) || (sdcp->state == BLK_ACTIVE),
+              "sdcStart(), #1", "invalid state");
   sdcp->config = config;
   sdc_lld_start(sdcp);
   sdcp->state = BLK_ACTIVE;
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -163,14 +164,14 @@ void sdcStart(SDCDriver *sdcp, const SDCConfig *config) {
  */
 void sdcStop(SDCDriver *sdcp) {
 
-  osalDbgCheck(sdcp != NULL);
+  chDbgCheck(sdcp != NULL, "sdcStop");
 
-  osalSysLock();
-  osalDbgAssert((sdcp->state == BLK_STOP) || (sdcp->state == BLK_ACTIVE),
-                "invalid state");
+  chSysLock();
+  chDbgAssert((sdcp->state == BLK_STOP) || (sdcp->state == BLK_ACTIVE),
+              "sdcStop(), #1", "invalid state");
   sdc_lld_stop(sdcp);
   sdcp->state = BLK_STOP;
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -182,17 +183,17 @@ void sdcStop(SDCDriver *sdcp) {
  * @param[in] sdcp      pointer to the @p SDCDriver object
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS  operation succeeded.
- * @retval HAL_FAILED   operation failed.
+ * @retval CH_SUCCESS   operation succeeded.
+ * @retval CH_FAILED    operation failed.
  *
  * @api
  */
-bool sdcConnect(SDCDriver *sdcp) {
+bool_t sdcConnect(SDCDriver *sdcp) {
   uint32_t resp[1];
 
-  osalDbgCheck(sdcp != NULL);
-  osalDbgAssert((sdcp->state == BLK_ACTIVE) || (sdcp->state == BLK_READY),
-                "invalid state");
+  chDbgCheck(sdcp != NULL, "sdcConnect");
+  chDbgAssert((sdcp->state == BLK_ACTIVE) || (sdcp->state == BLK_READY),
+              "mmcConnect(), #1", "invalid state");
 
   /* Connection procedure in progress.*/
   sdcp->state = BLK_CONNECTING;
@@ -257,7 +258,7 @@ bool sdcConnect(SDCDriver *sdcp) {
       }
       if (++i >= SDC_INIT_RETRY)
         goto failed;
-      osalThreadSleep(MS2ST(10));
+      chThdSleepMilliseconds(10);
     }
   }
 
@@ -310,13 +311,13 @@ bool sdcConnect(SDCDriver *sdcp) {
 
   /* Initialization complete.*/
   sdcp->state = BLK_READY;
-  return HAL_SUCCESS;
+  return CH_SUCCESS;
 
   /* Connection failed, state reset to BLK_ACTIVE.*/
 failed:
   sdc_lld_stop_clk(sdcp);
   sdcp->state = BLK_ACTIVE;
-  return HAL_FAILED;
+  return CH_FAILED;
 }
 
 /**
@@ -325,36 +326,36 @@ failed:
  * @param[in] sdcp      pointer to the @p SDCDriver object
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS  operation succeeded.
- * @retval HAL_FAILED   operation failed.
+ * @retval CH_SUCCESS   operation succeeded.
+ * @retval CH_FAILED    operation failed.
  *
  * @api
  */
-bool sdcDisconnect(SDCDriver *sdcp) {
+bool_t sdcDisconnect(SDCDriver *sdcp) {
 
-  osalDbgCheck(sdcp != NULL);
+  chDbgCheck(sdcp != NULL, "sdcDisconnect");
 
-  osalSysLock();
-  osalDbgAssert((sdcp->state == BLK_ACTIVE) || (sdcp->state == BLK_READY),
-                "invalid state");
+  chSysLock();
+  chDbgAssert((sdcp->state == BLK_ACTIVE) || (sdcp->state == BLK_READY),
+              "sdcDisconnect(), #1", "invalid state");
   if (sdcp->state == BLK_ACTIVE) {
-    osalSysUnlock();
-    return HAL_SUCCESS;
+    chSysUnlock();
+    return CH_SUCCESS;
   }
   sdcp->state = BLK_DISCONNECTING;
-  osalSysUnlock();
+  chSysUnlock();
 
   /* Waits for eventual pending operations completion.*/
   if (_sdc_wait_for_transfer_state(sdcp)) {
     sdc_lld_stop_clk(sdcp);
     sdcp->state = BLK_ACTIVE;
-    return HAL_FAILED;
+    return CH_FAILED;
   }
 
   /* Card clock stopped.*/
   sdc_lld_stop_clk(sdcp);
   sdcp->state = BLK_ACTIVE;
-  return HAL_SUCCESS;
+  return CH_SUCCESS;
 }
 
 /**
@@ -368,20 +369,21 @@ bool sdcDisconnect(SDCDriver *sdcp) {
  * @param[in] n         number of blocks to read
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS  operation succeeded.
- * @retval HAL_FAILED   operation failed.
+ * @retval CH_SUCCESS   operation succeeded.
+ * @retval CH_FAILED    operation failed.
  *
  * @api
  */
-bool sdcRead(SDCDriver *sdcp, uint32_t startblk, uint8_t *buf, uint32_t n) {
-  bool status;
+bool_t sdcRead(SDCDriver *sdcp, uint32_t startblk,
+               uint8_t *buf, uint32_t n) {
+  bool_t status;
 
-  osalDbgCheck((sdcp != NULL) && (buf != NULL) && (n > 0));
-  osalDbgAssert(sdcp->state == BLK_READY, "invalid state");
+  chDbgCheck((sdcp != NULL) && (buf != NULL) && (n > 0), "sdcRead");
+  chDbgAssert(sdcp->state == BLK_READY, "sdcRead(), #1", "invalid state");
 
   if ((startblk + n - 1) > sdcp->capacity){
     sdcp->errors |= SDC_OVERFLOW_ERROR;
-    return HAL_FAILED;
+    return CH_FAILED;
   }
 
   /* Read operation in progress.*/
@@ -405,21 +407,21 @@ bool sdcRead(SDCDriver *sdcp, uint32_t startblk, uint8_t *buf, uint32_t n) {
  * @param[in] n         number of blocks to write
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS  operation succeeded.
- * @retval HAL_FAILED   operation failed.
+ * @retval CH_SUCCESS   operation succeeded.
+ * @retval CH_FAILED    operation failed.
  *
  * @api
  */
-bool sdcWrite(SDCDriver *sdcp, uint32_t startblk,
-              const uint8_t *buf, uint32_t n) {
-  bool status;
+bool_t sdcWrite(SDCDriver *sdcp, uint32_t startblk,
+                const uint8_t *buf, uint32_t n) {
+  bool_t status;
 
-  osalDbgCheck((sdcp != NULL) && (buf != NULL) && (n > 0));
-  osalDbgAssert(sdcp->state == BLK_READY, "invalid state");
+  chDbgCheck((sdcp != NULL) && (buf != NULL) && (n > 0), "sdcWrite");
+  chDbgAssert(sdcp->state == BLK_READY, "sdcWrite(), #1", "invalid state");
 
   if ((startblk + n - 1) > sdcp->capacity){
     sdcp->errors |= SDC_OVERFLOW_ERROR;
-    return HAL_FAILED;
+    return CH_FAILED;
   }
 
   /* Write operation in progress.*/
@@ -443,13 +445,14 @@ bool sdcWrite(SDCDriver *sdcp, uint32_t startblk,
 sdcflags_t sdcGetAndClearErrors(SDCDriver *sdcp) {
   sdcflags_t flags;
 
-  osalDbgCheck(sdcp != NULL);
-  osalDbgAssert(sdcp->state == BLK_READY, "invalid state");
+  chDbgCheck(sdcp != NULL, "sdcGetAndClearErrors");
+  chDbgAssert(sdcp->state == BLK_READY,
+              "sdcGetAndClearErrors(), #1", "invalid state");
 
-  osalSysLock();
+  chSysLock();
   flags = sdcp->errors;
   sdcp->errors = SDC_NO_ERROR;
-  osalSysUnlock();
+  chSysUnlock();
   return flags;
 }
 
@@ -459,18 +462,18 @@ sdcflags_t sdcGetAndClearErrors(SDCDriver *sdcp) {
  * @param[in] sdcp      pointer to the @p SDCDriver object
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS  the operation succeeded.
- * @retval HAL_FAILED   the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
-bool sdcSync(SDCDriver *sdcp) {
-  bool result;
+bool_t sdcSync(SDCDriver *sdcp) {
+  bool_t result;
 
-  osalDbgCheck(sdcp != NULL);
+  chDbgCheck(sdcp != NULL, "sdcSync");
 
   if (sdcp->state != BLK_READY)
-    return HAL_FAILED;
+    return CH_FAILED;
 
   /* Synchronization operation in progress.*/
   sdcp->state = BLK_SYNCING;
@@ -489,22 +492,22 @@ bool sdcSync(SDCDriver *sdcp) {
  * @param[out] bdip     pointer to a @p BlockDeviceInfo structure
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS  the operation succeeded.
- * @retval HAL_FAILED   the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
-bool sdcGetInfo(SDCDriver *sdcp, BlockDeviceInfo *bdip) {
+bool_t sdcGetInfo(SDCDriver *sdcp, BlockDeviceInfo *bdip) {
 
-  osalDbgCheck((sdcp != NULL) && (bdip != NULL));
+  chDbgCheck((sdcp != NULL) && (bdip != NULL), "sdcGetInfo");
 
   if (sdcp->state != BLK_READY)
-    return HAL_FAILED;
+    return CH_FAILED;
 
   bdip->blk_num = sdcp->capacity;
   bdip->blk_size = MMCSD_BLOCK_SIZE;
 
-  return HAL_SUCCESS;
+  return CH_SUCCESS;
 }
 
 
@@ -516,16 +519,16 @@ bool sdcGetInfo(SDCDriver *sdcp, BlockDeviceInfo *bdip) {
  * @param[in] endblk    ending block number
  *
  * @return              The operation status.
- * @retval HAL_SUCCESS  the operation succeeded.
- * @retval HAL_FAILED   the operation failed.
+ * @retval CH_SUCCESS   the operation succeeded.
+ * @retval CH_FAILED    the operation failed.
  *
  * @api
  */
-bool sdcErase(SDCDriver *sdcp, uint32_t startblk, uint32_t endblk) {
+bool_t sdcErase(SDCDriver *sdcp, uint32_t startblk, uint32_t endblk) {
   uint32_t resp[1];
 
-  osalDbgCheck((sdcp != NULL));
-  osalDbgAssert(sdcp->state == BLK_READY, "invalid state");
+  chDbgCheck((sdcp != NULL), "sdcErase");
+  chDbgAssert(sdcp->state == BLK_READY, "sdcErase(), #1", "invalid state");
 
   /* Erase operation in progress.*/
   sdcp->state = BLK_WRITING;
@@ -539,17 +542,17 @@ bool sdcErase(SDCDriver *sdcp, uint32_t startblk, uint32_t endblk) {
   _sdc_wait_for_transfer_state(sdcp);
 
   if ((sdc_lld_send_cmd_short_crc(sdcp, MMCSD_CMD_ERASE_RW_BLK_START,
-                                  startblk, resp) != HAL_SUCCESS) ||
+                                  startblk, resp) != CH_SUCCESS) ||
       MMCSD_R1_ERROR(resp[0]))
     goto failed;
 
   if ((sdc_lld_send_cmd_short_crc(sdcp, MMCSD_CMD_ERASE_RW_BLK_END,
-                                  endblk, resp) != HAL_SUCCESS) ||
+                                  endblk, resp) != CH_SUCCESS) ||
       MMCSD_R1_ERROR(resp[0]))
     goto failed;
 
   if ((sdc_lld_send_cmd_short_crc(sdcp, MMCSD_CMD_ERASE,
-                                  0, resp) != HAL_SUCCESS) ||
+                                  0, resp) != CH_SUCCESS) ||
       MMCSD_R1_ERROR(resp[0]))
     goto failed;
 
@@ -560,11 +563,11 @@ bool sdcErase(SDCDriver *sdcp, uint32_t startblk, uint32_t endblk) {
   _sdc_wait_for_transfer_state(sdcp);
 
   sdcp->state = BLK_READY;
-  return HAL_SUCCESS;
+  return CH_SUCCESS;
 
 failed:
   sdcp->state = BLK_READY;
-  return HAL_FAILED;
+  return CH_FAILED;
 }
 
 #endif /* HAL_USE_SDC */

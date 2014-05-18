@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -64,6 +64,10 @@
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
 
+#if DAC_USE_MUTUAL_EXCLUSION && !CH_USE_MUTEXES && !CH_USE_SEMAPHORES
+#error "DAC_USE_MUTUAL_EXCLUSION requires CH_USE_MUTEXES and/or CH_USE_SEMAPHORES"
+#endif
+
 /*===========================================================================*/
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
@@ -103,7 +107,27 @@ typedef enum {
  *
  * @notapi
  */
-#define _dac_wait_s(dacp) osalThreadSuspendS(&(dacp)->thread)
+#define _dac_wait_s(dacp) {                                                 \
+  chDbgAssert((dacp)->thread == NULL,                                       \
+              "_dac_wait_s(), #1", "already waiting");                      \
+  (dacp)->thread = chThdSelf();                                             \
+  chSchGoSleepS(THD_STATE_SUSPENDED);                                       \
+}
+/**
+ * @brief   Resumes a thread waiting for a conversion completion.
+ *
+ * @param[in] dacp      pointer to the @p DACDriver object
+ *
+ * @notapi
+ */
+#define _dac_reset_i(dacp) {                                                \
+  if ((dacp)->thread != NULL) {                                             \
+    Thread *tp = (dacp)->thread;                                            \
+    (dacp)->thread = NULL;                                                  \
+    tp->p_u.rdymsg  = RDY_RESET;                                            \
+    chSchReadyI(tp);                                                        \
+  }                                                                         \
+}
 
 /**
  * @brief   Resumes a thread waiting for a conversion completion.
@@ -112,16 +136,13 @@ typedef enum {
  *
  * @notapi
  */
-#define _dac_reset_i(dacp) osalThreadResumeI(&(dacp)->thread, MSG_RESET)
-
-/**
- * @brief   Resumes a thread waiting for a conversion completion.
- *
- * @param[in] dacp      pointer to the @p DACDriver object
- *
- * @notapi
- */
-#define _dac_reset_s(dacp) osalThreadResumeS(&(dacp)->thread, MSG_RESET)
+#define _dac_reset_s(dacp) {                                                \
+  if ((dacp)->thread != NULL) {                                             \
+    Thread *tp = (dacp)->thread;                                            \
+    (dacp)->thread = NULL;                                                  \
+    chSchWakeupS(tp, RDY_RESET);                                            \
+  }                                                                         \
+}
 
 /**
  * @brief   Wakes up the waiting thread.
@@ -131,9 +152,15 @@ typedef enum {
  * @notapi
  */
 #define _dac_wakeup_isr(dacp) {                                             \
-  osalSysLockFromISR();                                                     \
-  osalThreadResumeI(&(dacp)->thread, MSG_OK);                               \
-  osalSysUnlockFromISR();                                                   \
+  chSysLockFromIsr();                                                       \
+  if ((dacp)->thread != NULL) {                                             \
+    Thread *tp;                                                             \
+    tp = (dacp)->thread;                                                    \
+    (dacp)->thread = NULL;                                                  \
+    tp->p_u.rdymsg = RDY_OK;                                                \
+    chSchReadyI(tp);                                                        \
+  }                                                                         \
+  chSysUnlockFromIsr();                                                     \
 }
 
 /**
@@ -144,9 +171,15 @@ typedef enum {
  * @notapi
  */
 #define _dac_timeout_isr(dacp) {                                            \
-  osalSysLockFromISR();                                                     \
-  osalThreadResumeI(&(dacp)->thread, MSG_TIMEOUT);                          \
-  osalSysUnlockFromISR();                                                   \
+  chSysLockFromIsr();                                                       \
+  if ((dacp)->thread != NULL) {                                             \
+    Thread *tp;                                                             \
+    tp = (dacp)->thread;                                                    \
+    (dacp)->thread = NULL;                                                  \
+    tp->p_u.rdymsg = RDY_TIMEOUT;                                           \
+    chSchReadyI(tp);                                                        \
+  }                                                                         \
+  chSysUnlockFromIsr();                                                     \
 }
 
 #else /* !DAC_USE_WAIT */

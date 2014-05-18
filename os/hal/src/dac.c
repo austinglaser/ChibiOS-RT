@@ -1,6 +1,6 @@
 /*
     ChibiOS/RT - Copyright (C) 2006,2007,2008,2009,2010,
-                 2011,2012,2013 Giovanni Di Sirio.
+                 2011,2012 Giovanni Di Sirio.
 
     This file is part of ChibiOS/RT.
 
@@ -26,6 +26,7 @@
  * @{
  */
 
+#include "ch.h"
 #include "hal.h"
 
 #if HAL_USE_DAC || defined(__DOXYGEN__)
@@ -77,7 +78,11 @@ void dacObjectInit(DACDriver *dacp) {
   dacp->thread = NULL;
 #endif /* DAC_USE_WAIT */
 #if DAC_USE_MUTUAL_EXCLUSION
-  osalMutexObjectInit(&dacp->mutex);
+#if CH_USE_MUTEXES
+  chMtxInit(&dacp->mutex);
+#else
+  chSemInit(&dacp->semaphore, 1);
+#endif
 #endif /* DAC_USE_MUTUAL_EXCLUSION */
 #if defined(DAC_DRIVER_EXT_INIT_HOOK)
   DAC_DRIVER_EXT_INIT_HOOK(dacp);
@@ -94,18 +99,15 @@ void dacObjectInit(DACDriver *dacp) {
  */
 void dacStart(DACDriver *dacp, const DACConfig *config) {
 
-  osalDbgCheck((dacp != NULL) && (config != NULL));
+  chDbgCheck((dacp != NULL) && (config != NULL), "dacStart");
 
-  osalSysLock();
-
-  osalDbgAssert((dacp->state == DAC_STOP) || (dacp->state == DAC_READY),
-                "invalid state");
-
+  chSysLock();
+  chDbgAssert((dacp->state == DAC_STOP) || (dacp->state == DAC_READY),
+              "dacStart(), #1", "invalid state");
   dacp->config = config;
   dac_lld_start(dacp);
   dacp->state = DAC_READY;
-
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -119,17 +121,14 @@ void dacStart(DACDriver *dacp, const DACConfig *config) {
  */
 void dacStop(DACDriver *dacp) {
 
-  osalDbgCheck(dacp != NULL);
+  chDbgCheck(dacp != NULL, "dacStop");
 
-  osalSysLock();
-
-  osalDbgAssert((dacp->state == DAC_STOP) || (dacp->state == DAC_READY),
-                "invalid state");
-
+  chSysLock();
+  chDbgAssert((dacp->state == DAC_STOP) || (dacp->state == DAC_READY),
+              "dacStop(), #1", "invalid state");
   dac_lld_stop(dacp);
   dacp->state = DAC_STOP;
-
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -153,9 +152,9 @@ void dacStartConversion(DACDriver *dacp,
                         const dacsample_t *samples,
                         size_t depth) {
 
-  osalSysLock();
+  chSysLock();
   dacStartConversionI(dacp, grpp, samples, depth);
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -181,13 +180,14 @@ void dacStartConversionI(DACDriver *dacp,
                          const dacsample_t *samples,
                          size_t depth) {
 
-  osalDbgCheckClassI();
-  osalDbgCheck((dacp != NULL) && (grpp != NULL) && (samples != NULL) &&
-               ((depth == 1) || ((depth & 1) == 0)));
-  osalDbgAssert((dacp->state == DAC_READY) ||
-                (dacp->state == DAC_COMPLETE) ||
-                (dacp->state == DAC_ERROR),
-                "not ready");
+  chDbgCheckClassI();
+  chDbgCheck((dacp != NULL) && (grpp != NULL) && (samples != NULL) &&
+             ((depth == 1) || ((depth & 1) == 0)),
+             "dacStartConversionI");
+  chDbgAssert((dacp->state == DAC_READY) ||
+              (dacp->state == DAC_COMPLETE) ||
+              (dacp->state == DAC_ERROR),
+              "dacStartConversionI(), #1", "not ready");
 
   dacp->samples  = samples;
   dacp->depth    = depth;
@@ -208,22 +208,19 @@ void dacStartConversionI(DACDriver *dacp,
  */
 void dacStopConversion(DACDriver *dacp) {
 
-  osalDbgCheck(dacp != NULL);
+  chDbgCheck(dacp != NULL, "dacStopConversion");
 
-  osalSysLock();
-
-  osalDbgAssert((dacp->state == DAC_READY) ||
-                (dacp->state == DAC_ACTIVE),
-                "invalid state");
-
+  chSysLock();
+  chDbgAssert((dacp->state == DAC_READY) ||
+              (dacp->state == DAC_ACTIVE),
+              "dacStopConversion(), #1", "invalid state");
   if (dacp->state != DAC_READY) {
     dac_lld_stop_conversion(dacp);
     dacp->grpp  = NULL;
     dacp->state = DAC_READY;
     _dac_reset_s(dacp);
   }
-
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -238,12 +235,12 @@ void dacStopConversion(DACDriver *dacp) {
  */
 void dacStopConversionI(DACDriver *dacp) {
 
-  osalDbgCheckClassI();
-  osalDbgCheck(dacp != NULL);
-  osalDbgAssert((dacp->state == DAC_READY) ||
-                (dacp->state == DAC_ACTIVE) ||
-                (dacp->state == DAC_COMPLETE),
-                "invalid state");
+  chDbgCheckClassI();
+  chDbgCheck(dacp != NULL, "dacStopConversionI");
+  chDbgAssert((dacp->state == DAC_READY) ||
+              (dacp->state == DAC_ACTIVE) ||
+              (dacp->state == DAC_COMPLETE),
+              "dacStopConversionI(), #1", "invalid state");
 
   if (dacp->state != DAC_READY) {
     dac_lld_stop_conversion(dacp);
@@ -268,11 +265,11 @@ void dacStopConversionI(DACDriver *dacp) {
  * @param[in] depth     buffer depth (matrix rows number). The buffer depth
  *                      must be one or an even number.
  * @return              The operation result.
- * @retval MSG_OK       Conversion finished.
- * @retval MSG_RESET    The conversion has been stopped using
+ * @retval RDY_OK       Conversion finished.
+ * @retval RDY_RESET    The conversion has been stopped using
  *                      @p acdStopConversion() or @p acdStopConversionI(),
  *                      the result buffer may contain incorrect data.
- * @retval MSG_TIMEOUT  The conversion has been stopped because an hardware
+ * @retval RDY_TIMEOUT  The conversion has been stopped because an hardware
  *                      error.
  *
  * @api
@@ -283,12 +280,12 @@ msg_t dacConvert(DACDriver *dacp,
                  size_t depth) {
   msg_t msg;
 
-  osalSysLock();
-
+  chSysLock();
+  chDbgAssert(dacp->thread == NULL, "dacConvert(), #1", "already waiting");
   dacStartConversionI(dacp, grpp, samples, depth);
-  msg = osalThreadSuspendS(&dacp->thread);
-
-  osalSysUnlock();
+  _dac_wait_s(dacp);
+  msg = chThdSelf()->p_u.rdymsg;
+  chSysUnlock();
   return msg;
 }
 #endif /* DAC_USE_WAIT */
@@ -307,9 +304,13 @@ msg_t dacConvert(DACDriver *dacp,
  */
 void dacAcquireBus(DACDriver *dacp) {
 
-  osalDbgCheck(dacp != NULL);
-	
-  osalMutexLock(&dacp->mutex);
+  chDbgCheck(dacp != NULL, "dacAcquireBus");
+
+#if CH_USE_MUTEXES
+  chMtxLock(&dacp->mutex);
+#elif CH_USE_SEMAPHORES
+  chSemWait(&dacp->semaphore);
+#endif
 }
 
 /**
@@ -323,9 +324,14 @@ void dacAcquireBus(DACDriver *dacp) {
  */
 void dacReleaseBus(DACDriver *dacp) {
 
-  osalDbgCheck(dacp != NULL);
-	
-  osalMutexUnlock(&dacp->mutex);
+  chDbgCheck(dacp != NULL, "dacReleaseBus");
+
+#if CH_USE_MUTEXES
+  (void)dacp;
+  chMtxUnlock();
+#elif CH_USE_SEMAPHORES
+  chSemSignal(&dacp->semaphore);
+#endif
 }
 #endif /* DAC_USE_MUTUAL_EXCLUSION */
 

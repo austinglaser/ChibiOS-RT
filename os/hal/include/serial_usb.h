@@ -99,8 +99,9 @@
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
 
-#if !HAL_USE_USB
-#error "Serial over USB Driver requires HAL_USE_USB"
+#if !HAL_USE_USB || !CH_USE_QUEUES || !CH_USE_EVENTS
+#error "Serial over USB Driver requires HAL_USE_USB, CH_USE_QUEUES, "
+       "CH_USE_EVENTS"
 #endif
 
 /*===========================================================================*/
@@ -163,9 +164,9 @@ typedef struct {
   /* Driver state.*/                                                        \
   sdustate_t                state;                                          \
   /* Input queue.*/                                                         \
-  input_queue_t             iqueue;                                         \
+  InputQueue                iqueue;                                         \
   /* Output queue.*/                                                        \
-  output_queue_t            oqueue;                                         \
+  OutputQueue               oqueue;                                         \
   /* Input buffer.*/                                                        \
   uint8_t                   ib[SERIAL_USB_BUFFERS_SIZE];                    \
   /* Output buffer.*/                                                       \
@@ -218,7 +219,7 @@ extern "C" {
   void sduStart(SerialUSBDriver *sdup, const SerialUSBConfig *config);
   void sduStop(SerialUSBDriver *sdup);
   void sduConfigureHookI(SerialUSBDriver *sdup);
-  bool sduRequestsHook(USBDriver *usbp);
+  bool_t sduRequestsHook(USBDriver *usbp);
   void sduDataTransmitted(USBDriver *usbp, usbep_t ep);
   void sduDataReceived(USBDriver *usbp, usbep_t ep);
   void sduInterruptTransmitted(USBDriver *usbp, usbep_t ep);

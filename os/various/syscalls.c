@@ -65,6 +65,11 @@
 #include "hal.h"
 #endif
 
+#ifndef __errno_r
+#include <sys/reent.h>
+#define __errno_r(reent) reent->_errno
+#endif
+
 /***************************************************************************/
 
 int _read_r(struct _reent *r, int file, char * ptr, int len)
@@ -129,10 +134,10 @@ int _close_r(struct _reent *r, int file)
 
 caddr_t _sbrk_r(struct _reent *r, int incr)
 {
-#if CH_CFG_USE_MEMCORE
+#if CH_USE_MEMCORE
   void *p;
 
-  chDbgCheck(incr > 0);
+  chDbgCheck(incr > 0, "_sbrk_r");
 
   p = chCoreAlloc((size_t)incr);
   if (p == NULL) {

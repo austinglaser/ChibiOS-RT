@@ -26,6 +26,7 @@
  * @{
  */
 
+#include "ch.h"
 #include "hal.h"
 
 #if HAL_USE_ICU || defined(__DOXYGEN__)
@@ -85,15 +86,15 @@ void icuObjectInit(ICUDriver *icup) {
  */
 void icuStart(ICUDriver *icup, const ICUConfig *config) {
 
-  osalDbgCheck((icup != NULL) && (config != NULL));
+  chDbgCheck((icup != NULL) && (config != NULL), "icuStart");
 
-  osalSysLock();
-  osalDbgAssert((icup->state == ICU_STOP) || (icup->state == ICU_READY),
-                "invalid state");
+  chSysLock();
+  chDbgAssert((icup->state == ICU_STOP) || (icup->state == ICU_READY),
+              "icuStart(), #1", "invalid state");
   icup->config = config;
   icu_lld_start(icup);
   icup->state = ICU_READY;
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -105,14 +106,14 @@ void icuStart(ICUDriver *icup, const ICUConfig *config) {
  */
 void icuStop(ICUDriver *icup) {
 
-  osalDbgCheck(icup != NULL);
+  chDbgCheck(icup != NULL, "icuStop");
 
-  osalSysLock();
-  osalDbgAssert((icup->state == ICU_STOP) || (icup->state == ICU_READY),
-                "invalid state");
+  chSysLock();
+  chDbgAssert((icup->state == ICU_STOP) || (icup->state == ICU_READY),
+              "icuStop(), #1", "invalid state");
   icu_lld_stop(icup);
   icup->state = ICU_STOP;
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -124,13 +125,13 @@ void icuStop(ICUDriver *icup) {
  */
 void icuEnable(ICUDriver *icup) {
 
-  osalDbgCheck(icup != NULL);
+  chDbgCheck(icup != NULL, "icuEnable");
 
-  osalSysLock();
-  osalDbgAssert(icup->state == ICU_READY, "invalid state");
+  chSysLock();
+  chDbgAssert(icup->state == ICU_READY, "icuEnable(), #1", "invalid state");
   icu_lld_enable(icup);
   icup->state = ICU_WAITING;
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 /**
@@ -142,15 +143,15 @@ void icuEnable(ICUDriver *icup) {
  */
 void icuDisable(ICUDriver *icup) {
 
-  osalDbgCheck(icup != NULL);
+  chDbgCheck(icup != NULL, "icuDisable");
 
-  osalSysLock();
-  osalDbgAssert((icup->state == ICU_READY) || (icup->state == ICU_WAITING) ||
-                (icup->state == ICU_ACTIVE) || (icup->state == ICU_IDLE),
-                "invalid state");
+  chSysLock();
+  chDbgAssert((icup->state == ICU_READY) || (icup->state == ICU_WAITING) ||
+              (icup->state == ICU_ACTIVE) || (icup->state == ICU_IDLE),
+              "icuDisable(), #1", "invalid state");
   icu_lld_disable(icup);
   icup->state = ICU_READY;
-  osalSysUnlock();
+  chSysUnlock();
 }
 
 #endif /* HAL_USE_ICU */
