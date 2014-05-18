@@ -204,4 +204,4 @@ include $(RULESPATH)/rules.mk
 
 .PHONY: upload
 upload:
-	sudo dfu-util --device 0483:df11 --alt 0 --dfuse-address 0x08000000 --download $(BIN_FILE)
+	sudo dfu-util --device 0483:df11 --alt 0 --dfuse-address 0x08000000 --download ./build/ch.bin
