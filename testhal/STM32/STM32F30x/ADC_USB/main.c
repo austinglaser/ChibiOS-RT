@@ -349,6 +349,8 @@ static const SerialUSBConfig serusbcfg = {
 #define TEST_WA_SIZE    THD_WORKING_AREA_SIZE(256)
 
 static void cmd_adc(BaseSequentialStream *chp, int argc, char * argv[]) {
+  (void)argc;
+  (void)argv;
   chprintf(chp, "Test!\r\n");
 }
 
@@ -386,7 +388,7 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
   } while (tp != NULL);
 }
 
-/*static void cmd_test(BaseSequentialStream *chp, int argc, char *argv[]) {
+static void cmd_test(BaseSequentialStream *chp, int argc, char *argv[]) {
   thread_t *tp;
 
   (void)argv;
@@ -401,7 +403,7 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
     return;
   }
   chThdWait(tp);
-}*/
+}
 
 static void cmd_write(BaseSequentialStream *chp, int argc, char *argv[]) {
   static uint8_t buf[] =
@@ -437,7 +439,7 @@ static void cmd_write(BaseSequentialStream *chp, int argc, char *argv[]) {
 static const ShellCommand commands[] = {
   {"mem", cmd_mem},
   {"threads", cmd_threads},
-  //{"test", cmd_test},
+  {"test", cmd_test},
   {"write", cmd_write},
   {"adc", cmd_adc},
   {NULL, NULL}
