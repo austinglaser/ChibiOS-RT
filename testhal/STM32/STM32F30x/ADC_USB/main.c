@@ -436,8 +436,8 @@ static void cmd_adc(BaseSequentialStream *chp, int argc, char * argv[]) {
   
   int i;
   for (i = 0; i < ADC_GRP2_NUM_CHANNELS * ADC_GRP2_BUF_DEPTH; i++) {
-    chprintf(chp, "%03d: %04u ", i, samples2[i]);
     if (i%10 == 0) chprintf(chp, "\r\n");
+    chprintf(chp, "%03d: %04u ", i, samples2[i]);
   }
   chprintf(chp, "\r\n\r\n");
 }
