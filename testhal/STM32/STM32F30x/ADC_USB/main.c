@@ -433,13 +433,19 @@ static const SerialUSBConfig serusbcfg = {
 static void cmd_adc(BaseSequentialStream *chp, int argc, char * argv[]) {
   (void)argc;
   (void)argv;
-  
-  int i;
-  for (i = 0; i < ADC_GRP2_NUM_CHANNELS * ADC_GRP2_BUF_DEPTH; i++) {
-    if (i%10 == 0) chprintf(chp, "\r\n");
-    chprintf(chp, "%03d: %04u ", i, samples2[i]);
+
+  while (chnGetTimeout((BaseChannel *)chp, TIME_IMMEDIATE) == Q_TIMEOUT) {
+  //  chSequentialStreamWrite(&SDU1, buf, sizeof buf - 1);
+    chprintf(chp, "temp: %u\r",samples2[7]);
   }
-  chprintf(chp, "\r\n\r\n");
+  chprintf(chp, "\r\n\nstopped\r\n");
+  
+  //int i;
+  //for (i = 0; i < ADC_GRP2_NUM_CHANNELS * ADC_GRP2_BUF_DEPTH; i++) {
+  //  if (i%10 == 0) chprintf(chp, "\r\n");
+  //  chprintf(chp, "%03d: %04u ", i, samples2[i]);
+  //}
+  //chprintf(chp, "\r\n\r\n");
 }
 
 static void cmd_mem(BaseSequentialStream *chp, int argc, char *argv[]) {
