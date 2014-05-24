@@ -27,14 +27,10 @@ limitations under the License.
 /* ADC related stuff.                                                        */
 /*===========================================================================*/
 
-#define ADC_GRP1_NUM_CHANNELS   2
-#define ADC_GRP1_BUF_DEPTH      8
+#define ADC_GRP_NUM_CHANNELS   8
+#define ADC_GRP_BUF_DEPTH      16
 
-#define ADC_GRP2_NUM_CHANNELS   8
-#define ADC_GRP2_BUF_DEPTH      16
-
-static adcsample_t samples1[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
-static adcsample_t samples2[ADC_GRP2_NUM_CHANNELS * ADC_GRP2_BUF_DEPTH];
+static adcsample_t samples[ADC_GRP_NUM_CHANNELS * ADC_GRP_BUF_DEPTH];
 
 /*
  * ADC streaming callback.
@@ -43,7 +39,7 @@ size_t nx = 0, ny = 0;
 static void adccallback(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 
   (void)adcp;
-  if (samples2 == buffer) {
+  if (samples == buffer) {
     nx += n;
   }
   else {
@@ -59,43 +55,17 @@ static void adcerrorcallback(ADCDriver *adcp, adcerror_t err) {
 
 /*
  * ADC conversion group.
- * Mode:        Linear buffer, 8 samples of 2 channels, SW triggered.
- * Channels:    IN7, IN8.
+ * Mode:        Continuous, 16 samples of 1 channel, SW triggered.
+ * Channels:    IN12
  */
-static const ADCConversionGroup adcgrpcfg1 = {
-  FALSE,
-  ADC_GRP1_NUM_CHANNELS,
-  NULL,
-  adcerrorcallback,
-  0,                        /* CFGR    */
-  ADC_TR(0, 4095),          /* TR1     */
-  0,                        /* CCR     */
-  {                         /* SMPR[2] */
-    0,
-    0
-  },
-  {                         /* SQR[4]  */
-    ADC_SQR1_SQ1_N(ADC_CHANNEL_IN7) | ADC_SQR1_SQ2_N(ADC_CHANNEL_IN8),
-    0,
-    0,
-    0
-  }
-};
-
-/*
- * ADC conversion group.
- * Mode:        Continuous, 16 samples of 8 channels, SW triggered.
- * Channels:    IN7, IN8, IN7, IN8, IN7, IN8, Sensor, VBat/2.
- */
-static const ADCConversionGroup adcgrpcfg2 = {
+static const ADCConversionGroup group = {
   TRUE,
-  ADC_GRP2_NUM_CHANNELS,
+  ADC_GRP_NUM_CHANNELS,
   adccallback,
   adcerrorcallback,
   0,                         /* CFGR    */
   ADC_TR(0, 4095),           /* TR1     */
-  ADC_CCR_TSEN
-   | ADC_CCR_VBATEN,         /* CCR     */
+  0,                         /* CCR     */
   {                          /* SMPR[2] */
     ADC_SMPR1_SMP_AN7(ADC_SMPR_SMP_19P5)
      | ADC_SMPR1_SMP_AN8(ADC_SMPR_SMP_19P5),
@@ -436,14 +406,14 @@ static void cmd_adc(BaseSequentialStream *chp, int argc, char * argv[]) {
 
   while (chnGetTimeout((BaseChannel *)chp, TIME_IMMEDIATE) == Q_TIMEOUT) {
   //  chSequentialStreamWrite(&SDU1, buf, sizeof buf - 1);
-    chprintf(chp, "temp: %u\r\n",samples2[7]);
+    chprintf(chp, "temp: %u\r\n",samples[7]);
   }
   chprintf(chp, "\r\n\nstopped\r\n");
   
   //int i;
-  //for (i = 0; i < ADC_GRP2_NUM_CHANNELS * ADC_GRP2_BUF_DEPTH; i++) {
+  //for (i = 0; i < ADC_GRP_NUM_CHANNELS * ADC_GRP_BUF_DEPTH; i++) {
   //  if (i%10 == 0) chprintf(chp, "\r\n");
-  //  chprintf(chp, "%03d: %04u ", i, samples2[i]);
+  //  chprintf(chp, "%03d: %04u ", i, samples[i]);
   //}
   //chprintf(chp, "\r\n\r\n");
 }
@@ -617,15 +587,9 @@ int main(void) {
   adcStart(&ADCD3, NULL);
 
   /*
-   * Linear conversion.
-   */
-  adcConvert(&ADCD3, &adcgrpcfg1, samples1, ADC_GRP1_BUF_DEPTH);
-  chThdSleepMilliseconds(1000);
-
-  /*
    * Starts an ADC continuous conversion.
    */
-  adcStartConversion(&ADCD3, &adcgrpcfg2, samples2, ADC_GRP2_BUF_DEPTH);
+  adcStartConversion(&ADCD3, &group, samples, ADC_GRP_BUF_DEPTH);
 
   /*  
    * Normal main() thread activity, in this demo it does nothing except

@@ -179,7 +179,7 @@
  * PA1  - WS2812                    (output pushpull).
  * PA2  - TX2                       (alternate 7).
  * PA3  - RX2                       (alternate 7).
- * PA4  - DAC                       (input floating). NOTE: no DAC AF. automatically controls pin on enable
+ * PA4  - DAC                       (analog). NOTE: no DAC AF. automatically controls pin on enable
  * PA5  - BOOT_OUT_2                (input floating).
  * PA6  - RESET_OUT_2               (input floating).
  * PA7  - RESET_OUT_1               (input floating).
@@ -196,7 +196,7 @@
                                      PIN_MODE_INPUT(GPIOA_WS2812) |           \
                                      PIN_MODE_ALTERNATE(GPIOA_TX2) |          \
                                      PIN_MODE_ALTERNATE(GPIOA_RX2) |          \
-                                     PIN_MODE_INPUT(GPIOA_DAC) |              \
+                                     PIN_MODE_ANALOG(GPIOA_DAC) |             \
                                      PIN_MODE_INPUT(GPIOA_BOOT_OUT_2) |       \
                                      PIN_MODE_INPUT(GPIOA_RESET_OUT_2) |      \
                                      PIN_MODE_INPUT(GPIOA_RESET_OUT_1) |      \
@@ -292,9 +292,9 @@
 /*
  * GPIOB setup:
  *
- * PB0  - MIC_OUT                   (input floating). NOTE: no ADC alternate function.
- * PB1  - VIN_SENSE                 (input floating). NOTE: no ADC alternate function. 
- * PB2  - V_TEMP                    (input floating). NOTE: no ADC alternate function. 
+ * PB0  - MIC_OUT                   (analog). NOTE: no ADC alternate function.
+ * PB1  - VIN_SENSE                 (analog). NOTE: no ADC alternate function. 
+ * PB2  - V_TEMP                    (analog). NOTE: no ADC alternate function. 
  * PB3  - JTDO                      (floating input). NOTE: Could be JTAG/mic clock
  * PB4  - MISO3                     (floating input).
  * PB5  - MODE                      (output push/pull).
